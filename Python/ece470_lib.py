@@ -112,7 +112,7 @@ def evalJ(S, theta):
     return np.hstack(J)
 
 def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
-    if  theta==None:
+    if  theta is None:
         theta = np.zeros((len(S),1))
     V = np.ones((6,1))
     while np.linalg.norm(V) > max_err and max_iter > 0:
@@ -122,4 +122,5 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
         pinv = inv(J.transpose().dot(J) + mu*np.identity(len(S))).dot(J.transpose())
         thetadot = pinv.dot(V)
         theta = theta + thetadot
+        max_iter -= 1;
     return (theta, np.linalg.norm(V))
