@@ -3,23 +3,25 @@ from numpy.linalg import inv
 from scipy.linalg import expm, logm
 
 """
-ECE 470 Lib
+ece470_lib.py
+
+Created for ECE 470 CBTF Exams
+
+Portions of this library will be included with the exams.
+Import the library into Jupyter Notebook by placing this file in the same directory as your notebook.
+Then run:
+import ece470_lib as ece470
+and then you can use the functions as
+ece470.bracket(np.ones(6,1))
+
+Hosted at https://github.com/namanjindal/ECE-470-Library
+If you would like to contribute, reply to @289 on Piazza with your github username
 
 ------------
 Created by Naman Jindal
+March 2018
 
 """
-
-def combine_matrix(m):
-    """
-    Combines a list of matricies into a single numpy matrix
-    Essentially stacks every row of the input list into a numpy matrix,
-    then stacks all the rows vertically.
-    :param m: The list of lists to convert
-    """
-    return np.vstack([np.hstack(row) for row in m])
-
-
 def bracket(v):
     """
     Returns the 'bracket' operator of a 3x1 vector or 6x1 twist
@@ -29,9 +31,8 @@ def bracket(v):
     v = np.asarray(v)
     rtn = []
     if(v.shape == (6,1)):
-        rtn =   [[ bracket(v[:3]),  v[3:]   ],
-                 [ np.zeros((1,4))          ]]
-        rtn = combine_matrix(rtn)
+        rtn = np.block([[ bracket(v[:3]),  v[3:]   ],
+                        [ np.zeros((1,4))          ]])
     elif(v.shape == (3,1)):
         rtn = np.zeros((3,3))
         rtn[0][1] = - v[2]
@@ -49,9 +50,8 @@ def inv_bracket(m):
     rtn = []
     m = np.asarray(m)
     if(m.shape == (4,4)):
-        rtn =   [[ inv_bracket(m[:3,:3])],
-                 [ m[:3,3:]             ]]
-        rtn = combine_matrix(rtn)
+        rtn = np.block([[ inv_bracket(m[:3,:3])],
+                        [ m[:3,3:]             ]])
     elif(m.shape == (3,3)):
         m = m - m.transpose()
         rtn = np.zeros((3,1))
@@ -66,8 +66,8 @@ def adj_T(T):
     :param T: the pose whose 6x6 adjoint matrix to return
     """
     rot, pos = fromPose(T)
-    return combine_matrix([[ rot,                   np.zeros((3,3)) ],
-                           [ bracket(pos).dot(rot), rot             ]])
+    return np.block([[ rot,                   np.zeros((3,3)) ],
+                     [ bracket(pos).dot(rot), rot             ]])
 
 def toPose(rot, pos):
     """
@@ -76,8 +76,8 @@ def toPose(rot, pos):
     :param pos: A 3x1 Position Vector
     :returns: A 4x4 HTC matrix as a numpy array
     """
-    return combine_matrix([[ rot, pos  ],
-                           [ [0,0,0,1] ]])
+    return np.block([[ rot, pos  ],
+                     [ [0,0,0,1] ]])
 
 def fromPose(T):
     """
@@ -93,19 +93,20 @@ def toScrew(a, q=None):
     """
     Returns the space screw of some prismatic or revolute joint as a 6x1 numpy array.
     If a q is supplied, the returned screw will be revolute; if no q, screw will be prismatic.
-    :param a: The axis of motion for a prismatic screw or axis of revolution for a 
-    :param q: A point passing through the axis if a revolute joint.
+    Can use either python list, list of lists, or numpy array as inputs in XYZ order
+    :param a: The axis of motion for a prismatic screw or axis of revolution. Should have norm 1 (not checked)
+    :param q: A point passing through the axis if a revolute joint
     :returns: A 6x1 numpy matrix representing the screw axis
     """
-    if type(a) is list:
-        a = np.transpose([a])
-    if q is not None and type(q) is list:
-        q = np.transpose([q])
-        return combine_matrix([[ a                 ],
-                               [ bracket(q).dot(a) ]])
-
-    return combine_matrix([[ np.zeros((3,1)) ],
-                           [ a               ]])
+    a = np.atleast_2d(a).reshape((3,1))
+    # Revolute Screw
+    if q is not None:
+        q = np.atleast_2d(q).reshape((3,1))
+        return np.block([[ a                 ],
+                         [ bracket(q).dot(a) ]])
+    # Prismatic Screw
+    return np.block([[ np.zeros((3,1)) ],
+                     [ a               ]])
 
 def toTs(S, theta):
     """
@@ -132,7 +133,6 @@ def evalT(S, theta, M):
     ret = np.identity(4)
     for t in toTs(S, theta):
         ret = ret.dot(t)
-
     return ret.dot(M)
 
 def evalJ(S, theta):
@@ -154,6 +154,10 @@ def evalJ(S, theta):
         J.append(adj_T(col).dot(S[i]))
     return np.hstack(J)
 
+##
+## The following code will (probably) not be included with Exam 4
+##
+
 def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
     """
     Basically Inverse Kinematics
@@ -174,7 +178,7 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
               element is the norm of the twist required to take the found pose to the desired pose. Essentially the error that PL checks against.
     """
     if  theta is None:
-        theta = np.zeros((len(S[0]),1))
+        theta = np.zeros((len(S),1))
     V = np.ones((6,1))
     while np.linalg.norm(V) > max_err and max_iter > 0:
         curr_pose = evalT(S, theta, M)
