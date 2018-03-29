@@ -23,13 +23,8 @@ With assistance of Kyle Jensen
 March 2018
 
 """
-
 def skew4(V_b):
-    """
-    Temporary fix to the bracket problem. Hardcoded manipulation of a 6x1 matrix to its respective 4x4 matrix
-    """
     return np.array([[0,-1*V_b[2],V_b[1],V_b[3]],[V_b[2],0,-1*V_b[0],V_b[4]],[-1*V_b[1],V_b[0],0,V_b[5]],[0,0,0,0]])
-
 
 
 def bracket(v):
@@ -123,7 +118,6 @@ def toTs(S, theta):
     Generates a list of HCT matricies from a list of screw axes and joint variables. Not that useful for general work,
     but used by other functions. Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
     Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix) 
-    Changed slightly in order to fix dimension error
     :param S: A python list of 6x1 screw axes
     :param theta: A list/numpy array of joint vars. Should have the same number of elements as S
     :returns: A python list of 4x4 HCT matricies representing a transformation by each of the screw axes
@@ -148,7 +142,6 @@ def evalT(S, theta, M):
 
 def evalJ(S, theta):
     """
-    Changed J notation and some other slight matrix errors so that dimensions work correctly
     Finds the space jacobian of a robot with given screw axes at a given joint positions:
     Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
     Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix)
@@ -197,8 +190,9 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
         curr_pose = evalT(S, theta, M)
         V = inv_bracket(logm(endT.dot(inv(curr_pose))))
         J = evalJ(S, theta)
-        pinv = inv(J.transpose().dot(J) + mu*np.identity(len(S))).dot(J.transpose())
+        pinv = inv(J.transpose().dot(J) + mu*np.identity(S.shape[1])).dot(J.transpose())
         thetadot = pinv.dot(V)
         theta = theta + thetadot
         max_iter -= 1;
     return (theta, np.linalg.norm(V))
+
