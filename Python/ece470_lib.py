@@ -19,9 +19,19 @@ If you would like to contribute, reply to @289 on Piazza with your github userna
 
 ------------
 Created by Naman Jindal
+With assistance of Kyle Jensen
 March 2018
 
 """
+
+def skew4(V_b):
+    """
+    Temporary fix to the bracket problem. Hardcoded manipulation of a 6x1 matrix to its respective 4x4 matrix
+    """
+    return np.array([[0,-1*V_b[2],V_b[1],V_b[3]],[V_b[2],0,-1*V_b[0],V_b[4]],[-1*V_b[1],V_b[0],0,V_b[5]],[0,0,0,0]])
+
+
+
 def bracket(v):
     """
     Returns the 'bracket' operator of a 3x1 vector or 6x1 twist
@@ -113,11 +123,12 @@ def toTs(S, theta):
     Generates a list of HCT matricies from a list of screw axes and joint variables. Not that useful for general work,
     but used by other functions. Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
     Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix) 
+    Changed slightly in order to fix dimension error
     :param S: A python list of 6x1 screw axes
     :param theta: A list/numpy array of joint vars. Should have the same number of elements as S
     :returns: A python list of 4x4 HCT matricies representing a transformation by each of the screw axes
     """
-    return [expm(bracket(s) * t) for s, t in zip(S, theta)]
+    return [expm(skew4(S[:,i]) * theta[i]) for i in range(S.shape[1])]
 
 def evalT(S, theta, M):
     """
@@ -137,6 +148,7 @@ def evalT(S, theta, M):
 
 def evalJ(S, theta):
     """
+    Changed J notation and some other slight matrix errors so that dimensions work correctly
     Finds the space jacobian of a robot with given screw axes at a given joint positions:
     Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
     Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix)
@@ -146,13 +158,14 @@ def evalJ(S, theta):
     :returns: A 6xN matrix representing the space Jacobian of the robot with the given screw axes at the given joint vars
     """
     T = toTs(S, theta)
-    J = [S[0]]
-    for i in range(1, len(S)):
+    J = S[:,[0]]
+    for i in range(1, S.shape[1]):
         col = T[0]
         for j in range(1, i):
             col = col.dot(T[j])
-        J.append(adj_T(col).dot(S[i]))
-    return np.hstack(J)
+        newterm = adj_T(col).dot(S[:,[i]])
+        J = np.concatenate((J,newterm),axis=1)
+    return J
 
 ##
 ## The following code will (probably) not be included with Exam 4
@@ -178,7 +191,7 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
               element is the norm of the twist required to take the found pose to the desired pose. Essentially the error that PL checks against.
     """
     if  theta is None:
-        theta = np.zeros((len(S),1))
+        theta = np.zeros((S.shape[1],1))
     V = np.ones((6,1))
     while np.linalg.norm(V) > max_err and max_iter > 0:
         curr_pose = evalT(S, theta, M)
