@@ -1,6 +1,6 @@
 function T = find_fk(S, theta, M)
-% returns a pose T
-% given a set of n spatial screw axis S = [S1 S2 .. Sn]
+% Returns a pose T
+% Given a set of n spatial screw axis S = [S1 S2 .. Sn]
 % a matrix of n thetas, where theta can be 1xn or nx1
 % and the current pose, M
     % n is number of joints
