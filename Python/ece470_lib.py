@@ -20,7 +20,10 @@ If you would like to contribute, reply to @289 on Piazza with your github userna
 ------------
 Created by Naman Jindal
 With assistance of Kyle Jensen
-March 2018
+
+For any help/questions/fixes either comment on the piazza post above or email me at kejense2@illinois.edu!
+
+April 2018 Edition
 
 """
 def skew4(V_b):
@@ -195,4 +198,70 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
         theta = theta + thetadot
         max_iter -= 1;
     return (theta, np.linalg.norm(V))
+
+
+
+
+def Dist3D(p1, p2):
+    """Euclidean distance function for three dimensions. Assumes that p1 and p2 are
+    column matrices in the order of px, py, pz respectively.
+    """
+    return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)
+
+def finalpos(S, theta, start):
+    """ This function finds the final position of all joints. Solution to 5.1.3.
+    Parameters:
+    S: the 6x6 matrix of the spatial screw axes for all joints.
+    theta: a 6x1 matrix representing a certain configuration of the robot. 
+    start: a 3x8 where the i'th column represents the initial position of the ith joint in terms of frame 0. """
+    
+    position = start[:,:2]
+    
+    for i in range(2,8):
+        M = np.identity(4)
+        M[0,3] = start[0, i]
+        M[1,3] = start[1, i]
+        M[2,3] = start[2, i]
+        T = evalT(S[:, 0:i-1], theta[0:i-1], M)
+        position = np.concatenate((position, T[:3, 3:4]),axis=1)
+
+    return position
+
+def checkcollision(p, r, q, s):
+    """checkcollision is the solution to 5.1.2.
+    Parameters:
+    p: a 3xn matrix which represents the positions of all spheres.
+    r: a 1xn matrix representing the radii of every sphere. 
+    q: a 3x1 matrix representing the position of the final sphere.
+    s: the radius of the final sphere"""
+    
+    c = np.zeros(r.shape[1])
+    for i in range(p.shape[1]):
+        dis = Dist3D(q, p[:,[i]])
+        if(dis < (r[:,i]+s)):
+            c[i]+=1
+    return c
+        
+
+def checkselfcollision(S, theta, start, r):
+    """checkselfcollisions checks whether a certain series of configurations causes a self collision. Solution to 5.1.5
+    S: a 6x6 matrix of the spatial screw axes for all joints.
+    theta: a 6xn matrix of configurations. Notice that the ith column of this matrix is a 6x1 theta matrix representing a certain configuration of the robot
+    start: a 3x8 matrix of joint starting positions in frame 0. 
+    r: a given radius for surrounding spheres"""
+    
+    c = np.zeros(theta.shape[1])
+    for i in range(theta.shape[1]):
+        t = theta[:,[i]]
+        jointpos = finalpos(S,t,start)
+        for j in range(jointpos.shape[1]):
+            joint2check = jointpos[:,[j]]
+            for k in range(jointpos.shape[1]):
+                if(k != j):
+                    if(Dist3D(joint2check, jointpos[:,[k]])< (r+r)):
+                        c[i] = 1
+                    
+    return c
+
+
 
