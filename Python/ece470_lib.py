@@ -232,7 +232,7 @@ def matrix_linspace(m_start, m_end, num, to_end=False):
 
 class Tree:
     """
-    Simple generic tree data structure - Uses a dictionary as backend
+    Simple generic tree data structure - Uses a uptree list for implementation
     Can take any value for internal elements.
 
     Not performance optimized, but should work fo the course.
@@ -251,26 +251,28 @@ class Tree:
     TODO: Complete Documentation
     """
     def __init__(self, root):
-        self.__tree = {}
-        self.__tree[root] = None
+        self.__data = [root]
+        self.__idx = [None]
 
     def size(self):
-        return len(self.__tree)
+        return len(self.__data)
 
     def insert(self, data, parent):
-        if not parent in self.__tree.keys():
-            raise KeyError("Parent element not in tree")
-        if data in self.__tree.keys():
-            raise KeyError("Data element already in tree")
-        self.__tree[data] = parent
+        if not parent in self.__data:
+            raise IndexError("Parent element not in tree")
+        if data in self.__data:
+            raise IndexError("Data element already in tree")
+        self.__data.append(data)
+        self.__idx.append(self.__data.index(parent))
 
     def getElements(self):
-        return list(self.__tree.keys())
+        return list(self.__data)
 
     def parent(self, data):
-        if not data in self.__tree.keys():
+        if not data in self.__data.keys():
             raise KeyError("Data element not in tree")
-        return self.__tree[data]
+        parent_idx = self.__idx[self.__data.index(data)]
+        return self.__data[parent_idx]
 
     def __iter__(self):
         return list.__iter__(self.getElements())
