@@ -127,6 +127,16 @@ def toTs(S, theta):
     """
     return [expm(skew4(S[:,i]) * theta[i]) for i in range(S.shape[1])]
 
+def sequential_Ts(S, theta):
+    """
+    TODO: Validation/Documentation
+    """
+    T = toTs(S, theta)
+    ret = [T[0]]
+    for t in T[1:]
+        ret.append(ret[-1].dot(t))
+    return ret
+
 def evalT(S, theta, M):
     """
     Basically Forward Kinematics 
@@ -163,9 +173,6 @@ def evalJ(S, theta):
         J = np.concatenate((J,newterm),axis=1)
     return J
 
-##
-## The following code will (probably) not be included with Exam 4
-##
 
 def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
     """
@@ -201,6 +208,88 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
 
 
 
+def matrix_linspace(m_start, m_end, num, to_end=False):
+    """
+    np.linspace equivilant that also works for numpy arrays as well as numbers
+    Can be set to include the endpoint in the given list or not. Can use either a number, python list, or numpy
+    array for input, but m_start and m_end should be the same type.
+    :param m_start: The start point of the linspace. Will be the first matrix in the returned list
+    :param m_end:   The end point of the linspace. Will NOT be included unless to_end is True and will then be the last element
+    :param num:     A positive number that indicates the number of divisions
+    :param to_end:  Default False - If True, will return num+1 elements and the last will be m_end
+
+    """
+    if type(m_start) is list:
+        m_start = np.asarray(m_start)
+        m_end = np.asarray(m_end)
+    diff = (m_end - m_start)/num
+    if to_end:
+        num += 1
+    ret = []
+    for i in range(num):
+        ret.append(m_start + i * diff)
+    return ret 
+
+class Tree:
+    """
+    Simple generic tree data structure - Uses a dictionary as backend
+    Can take any value for internal elements.
+
+    Not performance optimized, but should work fo the course.
+    Note: does not support removal/modification of tree structure other than insert
+    """
+    def __init__(self, root):
+        self.__tree = {}
+        self.__tree[root] = None
+
+    def size(self):
+        return len(self.__tree)
+
+    def insert(self, data, parent):
+        if not parent in self.__tree.keys():
+            raise KeyError("Parent element not in tree")
+        if data in self.__tree.keys():
+            raise KeyError("Data element already in tree")
+        self.__tree[data] = parent
+
+    def getElements(self):
+        return self.__tree.keys()
+
+    def parent(self, data):
+        if not data in self.__tree.keys():
+            raise KeyError("Data element not in tree")
+        return self.__tree[data]
+   
+
+##
+## The following code will (possbibly) not be included with Exam 5
+##
+
+def multi_transform(pts, S, theta):
+    """
+    Transforms a list of points by a given screw axis and theta combination. The number of points should be greater than or
+    equal to the number of screw axes. Points will be transformed as follows:
+    TODO DOC
+    """ 
+    Ns = 0
+    Np = 0
+    if isinstance(S, np.ndarray):
+        Ns = S.shape[1]
+        S = np.hsplit(S, Ns)
+    else:
+        Ns = len(S)
+    theta = np.asarray(theta).flatten()
+    if isinstance(pts, np.ndarray):
+        Np = pts.shape[1]
+        pts = np.hsplit(pts, Np)
+    else:
+        Np = len(pts)
+    pts = [np.vstack([p, [[1]] ]) for p in pts]
+    T = [evalT(S[:n], theta[:n]) for n in range(1,Ns+1)]
+    while Ns < Np:
+        T.insert(0, np.identity(4))
+        Ns += 1
+    return np.hstack([t.dot(p) for t, p in zip(T, pts)])[:3]
 
 def Dist3D(p1, p2):
     """Euclidean distance function for three dimensions. Assumes that p1 and p2 are
