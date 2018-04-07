@@ -230,7 +230,7 @@ def matrix_linspace(m_start, m_end, num, to_end=False):
         ret.append(m_start + i * diff)
     return ret 
 
-class Tree(list):
+class Tree:
     """
     Simple generic tree data structure - Uses a dictionary as backend
     Can take any value for internal elements.
