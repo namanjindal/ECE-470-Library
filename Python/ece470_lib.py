@@ -133,7 +133,7 @@ def sequential_Ts(S, theta):
     """
     T = toTs(S, theta)
     ret = [T[0]]
-    for t in T[1:]
+    for t in T[1:]:
         ret.append(ret[-1].dot(t))
     return ret
 
@@ -230,13 +230,25 @@ def matrix_linspace(m_start, m_end, num, to_end=False):
         ret.append(m_start + i * diff)
     return ret 
 
-class Tree:
+class Tree(list):
     """
     Simple generic tree data structure - Uses a dictionary as backend
     Can take any value for internal elements.
 
     Not performance optimized, but should work fo the course.
     Note: does not support removal/modification of tree structure other than insert
+
+    Class is also iterable and supports python loops such as
+    
+    t1 = Tree("el1")
+    ...
+    for el in t1:
+        print(el)
+    ==>
+    "el1"
+    ...
+
+    TODO: Complete Documentation
     """
     def __init__(self, root):
         self.__tree = {}
@@ -253,12 +265,15 @@ class Tree:
         self.__tree[data] = parent
 
     def getElements(self):
-        return self.__tree.keys()
+        return list(self.__tree.keys())
 
     def parent(self, data):
         if not data in self.__tree.keys():
             raise KeyError("Data element not in tree")
         return self.__tree[data]
+
+    def __iter__(self):
+        return list.__iter__(self.getElements())
    
 
 ##
