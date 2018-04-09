@@ -119,13 +119,14 @@ def toScrew(a, q=None):
 def toTs(S, theta):
     """
     Generates a list of HCT matricies from a list of screw axes and joint variables. Not that useful for general work,
-    but used by other functions. Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
-    Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix) 
+    but used by other functions. 
     :param S: A python list of 6x1 screw axes
     :param theta: A list/numpy array of joint vars. Should have the same number of elements as S
     :returns: A python list of 4x4 HCT matricies representing a transformation by each of the screw axes
     """
-    return [expm(skew4(S[:,i]) * theta[i]) for i in range(S.shape[1])]
+    if isinstance(S, np.ndarray):
+        S = np.hsplit(S, S.shape[1])
+    return [expm(bracket(s) * t) for s, t in zip(S, theta)]
 
 def sequential_Ts(S, theta):
     """
@@ -137,7 +138,7 @@ def sequential_Ts(S, theta):
         ret.append(ret[-1].dot(t))
     return ret
 
-def evalT(S, theta, M):
+def evalT(S, theta, M=np.identity(4)):
     """
     Basically Forward Kinematics 
     Finds the end position of a robot based on space screw axes, joint vars and the space 'zero HCT'
@@ -156,22 +157,18 @@ def evalT(S, theta, M):
 def evalJ(S, theta):
     """
     Finds the space jacobian of a robot with given screw axes at a given joint positions:
-    Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
-    Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix)
     TODO: Improve efficeny by removing the need to recompute the transformation for each screw
     :param S: a python list of 6x1 screw axes
     :param theta: a python list/numpy array of joint vars. Should be same number of elements as S
     :returns: A 6xN matrix representing the space Jacobian of the robot with the given screw axes at the given joint vars
     """
-    T = toTs(S, theta)
-    J = S[:,[0]]
-    for i in range(1, S.shape[1]):
-        col = T[0]
-        for j in range(1, i):
-            col = col.dot(T[j])
-        newterm = adj_T(col).dot(S[:,[i]])
-        J = np.concatenate((J,newterm),axis=1)
-    return J
+    if isinstance(S, np.ndarray):
+        S = np.hsplit(S, S.shape[1])
+    T = sequential_Ts(S, theta)
+    J = [S[0]]
+    for t, s in zip(T, S[1:]):
+        J.append(adj_T(t).dot(s))
+    return np.hstack(J)
 
 
 def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
@@ -180,8 +177,6 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
     Uses Newton's method to find joint vars to reach a given pose for a given robot. Returns joint positions and 
     the error. endT, S, and M should be provided in the space frame. Stop condiditons are when the final pose is less than a given
     twist norm from the desired end pose or a maximum number of iterations are reached. 
-    Note that numpy arrays of screw axes are not supported, only python lists of screw axes.
-    Use np.hsplit(S, N) to generate a list of screw axes given a numpy array S where N is the number of joints (cols in the matrix) 
     TODO: Improve internal type flexibilty of input types
     :param endT: the desired end pose of the end effector
     :param S: a python list of 6x1 screw axes in the space frame
@@ -193,6 +188,9 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
     :returns: A tuple where the first element is an Nx1 numpy array of joint variables where the algorithm ended. Second 
               element is the norm of the twist required to take the found pose to the desired pose. Essentially the error that PL checks against.
     """
+    if isinstance(S, list):
+        S = np.hstack(S)
+    
     if  theta is None:
         theta = np.zeros((S.shape[1],1))
     V = np.ones((6,1))
@@ -212,7 +210,7 @@ def matrix_linspace(m_start, m_end, num, to_end=False):
     """
     np.linspace equivilant that also works for numpy arrays as well as numbers
     Can be set to include the endpoint in the given list or not. Can use either a number, python list, or numpy
-    array for input, but m_start and m_end should be the same type.
+    array for input, but m_start and m_end must be the same type and shape.
     :param m_start: The start point of the linspace. Will be the first matrix in the returned list
     :param m_end:   The end point of the linspace. Will NOT be included unless to_end is True and will then be the last element
     :param num:     A positive number that indicates the number of divisions
@@ -232,18 +230,20 @@ def matrix_linspace(m_start, m_end, num, to_end=False):
 
 class Tree:
     """
-    Simple generic tree data structure - Uses a uptree list for implementation
-    Can take any value for internal elements.
+    Simple generic tree data structure - Uses a dictionary as underlying implementation
+    Can take any value for internal elements that supports string cast.
+    
+    Note - string casting is used as the hash function so identical strings will mean identical elements.
 
-    Not performance optimized, but should work fo the course.
+    Not performance optimized, but should work fo the course. 
     Note: does not support removal/modification of tree structure other than insert
 
     Class is also iterable and supports python loops such as
     
     t1 = Tree("el1")
     ...
-    for el in t1:
-        print(el)
+    for e in t1:
+        print(e)
     ==>
     "el1"
     ...
@@ -251,32 +251,35 @@ class Tree:
     TODO: Complete Documentation
     """
     def __init__(self, root):
-        self.__data = [root]
-        self.__idx = [None]
+        self.__tree = {}
+        self.__tree[self._hash(root)] = None
+        self.__elem = [root]
 
     def size(self):
-        return len(self.__data)
+        return len(self.__elem)
 
     def insert(self, data, parent):
-        if not parent in self.__data:
-            raise IndexError("Parent element not in tree")
-        if data in self.__data:
+        if not self._hash(parent) in self.__tree.keys():
+            raise KeyError("Parent element not in tree")
+        if self._hash(data) in self.__tree.keys():
             raise IndexError("Data element already in tree")
-        self.__data.append(data)
-        self.__idx.append(self.__data.index(parent))
+        self.__elem.append(data)
+        self.__tree[self._hash(data)] = parent
 
     def getElements(self):
-        return list(self.__data)
+        return list(self.__elem)
 
     def parent(self, data):
-        if not data in self.__data.keys():
+        if not self._hash(data) in self.__tree.keys():
             raise KeyError("Data element not in tree")
-        parent_idx = self.__idx[self.__data.index(data)]
-        return self.__data[parent_idx]
+        return self.__tree[self._hash(data)]
 
     def __iter__(self):
         return list.__iter__(self.getElements())
    
+    @staticmethod
+    def _hash(el):
+        return hash(str(el))
 
 ##
 ## The following code will (possbibly) not be included with Exam 5
