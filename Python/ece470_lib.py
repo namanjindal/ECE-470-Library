@@ -1,33 +1,76 @@
 import numpy as np
-from numpy.linalg import inv
+from numpy.linalg import inv, norm
 from scipy.linalg import expm, logm
 
 """
+----------------------------------------------------------------------------------------------------
 ece470_lib.py
 
-Created for ECE 470 CBTF Exams
+Created for ECE 470 CBTF Exams - Python Version
 
-Portions of this library will be included with the exams.
-Import the library into Jupyter Notebook by placing this file in the same directory as your notebook.
-Then run:
-import ece470_lib as ece470
-and then you can use the functions as
-ece470.bracket(np.ones(6,1))
+Portions of this library will be included with the course exams.
+
+Also feel free to use it for your Course Project
 
 Hosted at https://github.com/namanjindal/ECE-470-Library
-If you would like to contribute, reply to @289 on Piazza with your github username
+If you would like to contribute/have any issues, reply to @289 on the course Piazza
+----------------------------------------------------------------------------------------------------
+TO USE:
 
-------------
-Created by Naman Jindal
-With assistance of Kyle Jensen
+Import the library into Jupyter Notebook by placing this file in the same directory as your notebook.
+Then run:
 
-For any help/questions/fixes either comment on the piazza post above or email me at kejense2@illinois.edu!
+import ece470_lib as ece470
+
+and then you can use the functions as
+
+ece470.bracket(np.ones((6,1)))
+
+----------------------------------------------------------------------------------------------------
+FUNCTION OVERVIEW:
+
+For a more detailed description, see the doc-string associated with each function/class
+
+* skew4             - hardcoded 'bracket' operator on a 6x1 twist
+* bracket           - evaluates the 'bracket' operator on a 3x1 or 6x1 input
+* inv_bracket       - performs the inverse of 'bracket' on a 3x3 or 4x4 input
+* adj_T             - Returns the 6x6 adjoint matrix of a 4x4 transformation matrix
+* toPose            - Combines a 3x3 rotation matrix and 3x1 vector into a 4x4 HCT matrix
+* fromPose          - Splits a 4x4 HCT matrix into a 3x3 rotation matrix and 3x1 position vector
+* toScrew           - Calculates the 6x1 screw matrix for a revolute or prismatic joint
+* toTs              - Returns a list of HCT matricies from a screw-axis matrix and joint variables
+* sequential_Ts     - toTs, but each element is also multiplied by the previous elements
+* evalT             - Evals the space-pose based on S, theta, and optionally, M
+* evalJ             - Evals the space-jacobian based on S and theta
+* findIK            - Finds a set of thetas to achieve a given pose based on S and M
+* matrix_linspace   - Creates a list of linearly spaced matricies between two endpoints
+* Tree Class        - Simple, generic tree data structure - supports insert, parents, and iteration
+
+Possibly not included with Exam 5:
+
+* multi_transform   - ?
+* Dist3D            - why not just use np.linalg.norm(p1-p2)
+* final_pos         - ?
+* checkselfcollision- ?
+
+----------------------------------------------------------------------------------------------------
+CONTRIBUTORS:
+
+Naman Jindal    (namanj2)
+Kyle Jensen     (kejense2)
+
+If you have any issues, questions or suggestions, email us or reply to @289 on Piazza! 
 
 April 2018 Edition
-
+Pre-Exam 5.1
 """
+
+
 def skew4(V_b):
-    return np.array([[0,-1*V_b[2],V_b[1],V_b[3]],[V_b[2],0,-1*V_b[0],V_b[4]],[-1*V_b[1],V_b[0],0,V_b[5]],[0,0,0,0]])
+    return np.array([[0,-1*V_b[2],V_b[1],V_b[3]],
+                     [V_b[2],0,-1*V_b[0],V_b[4]],
+                     [-1*V_b[1],V_b[0],0,V_b[5]],
+                     [0,0,0,0]])
 
 
 def bracket(v):
@@ -170,7 +213,6 @@ def evalJ(S, theta):
         J.append(adj_T(t).dot(s))
     return np.hstack(J)
 
-
 def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
     """
     Basically Inverse Kinematics
@@ -203,8 +245,6 @@ def findIK(endT, S, M, theta=None, max_iter=100, max_err = 0.001, mu=0.05):
         theta = theta + thetadot
         max_iter -= 1;
     return (theta, np.linalg.norm(V))
-
-
 
 def matrix_linspace(m_start, m_end, num, to_end=False):
     """
@@ -281,9 +321,9 @@ class Tree:
     def _hash(el):
         return hash(str(el))
 
-##
+## -------------------------------------------------------------------------------------------------
 ## The following code will (possbibly) not be included with Exam 5
-##
+## -------------------------------------------------------------------------------------------------
 
 def multi_transform(pts, S, theta):
     """
